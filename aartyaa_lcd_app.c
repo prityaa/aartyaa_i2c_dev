@@ -42,13 +42,51 @@ int aartyaa_lcd_write_byte_data(int file, char read_write, __u8 command,
 	aartyaa_ioctl_data.data = &data;
 	
 	if ( ioctl(file, I2C_SLAVE, addr) < 0 ) {
-		fprintf(stderr, "Error: could not check address = 0x62"
-                        "functionality matrix: %s\n", strerror(errno));
-                close(file);
-                exit(1);		
+                
+		printf("aartyaa_lcd_write_byte_data : failed to check addr = %x\n", addr);
+                exit -1;		
 	}
 	
 	return ioctl(file, I2C_SMBUS, &aartyaa_ioctl_data);
+}
+
+int i2c_backlight_on(int file, int const r, int const y,  int const b ) 
+{
+	int ret = -1;
+	
+	pr_debug("calling first time file  = %d\n", file);
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 0, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
+		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+		return -1;
+ 	}
+	
+	pr_debug("main : aartyaa caaling 2nd write \n" );
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 1, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
+		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+		return -1;
+ 	}
+
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 8, 2, 170, DISPLAY_RGB_ADDR) < 0) ) {
+		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+		return -1;
+ 	}
+	
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 4, 2, r, DISPLAY_RGB_ADDR) < 0) ) {
+		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+		return -1;
+ 	}
+	
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 3, 2, y, DISPLAY_RGB_ADDR) < 0) ) {
+		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+		return -1;
+ 	}
+
+	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 2, 2, b, DISPLAY_RGB_ADDR) < 0) ) {
+                pr_debug("aartyaa_lcd_write_byte_data failed\n");
+                return -1;
+        }
+
+	return ret;
 }
 
 int main()
@@ -71,37 +109,13 @@ int main()
                 exit(1);
         }
 
-	pr_debug("calling first time file  = %d\n", file);
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 0, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
-		pr_debug("aartyaa_lcd_write_byte_data failed\n");
-		return -1;
- 	}
-	
-	pr_debug("main : aartyaa caaling 2nd write \n" );
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 1, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
-		pr_debug("aartyaa_lcd_write_byte_data failed\n");
-		return -1;
- 	}
+	pr_debug("main : functions provided by adaptor = %x\n", funcs);
 
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 8, 2, 170, DISPLAY_RGB_ADDR) < 0) ) {
-		pr_debug("aartyaa_lcd_write_byte_data failed\n");
-		return -1;
- 	}
 	
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 4, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
-		pr_debug("aartyaa_lcd_write_byte_data failed\n");
+	if (i2c_backlight_on(file, 23, 255, 70) < 0) {
+		printf("main : failed to backllight on\n");
 		return -1;
- 	}
-	
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 3, 2, 255, DISPLAY_RGB_ADDR) < 0) ) {
-		pr_debug("aartyaa_lcd_write_byte_data failed\n");
-		return -1;
- 	}
-
-	if ( (ret = aartyaa_lcd_write_byte_data(file, 0, 2, 2, 0, DISPLAY_RGB_ADDR) < 0) ) {
-                pr_debug("aartyaa_lcd_write_byte_data failed\n");
-                return -1;
-        }
+	}
 		
 	if (file > 0)
 		close(file);
