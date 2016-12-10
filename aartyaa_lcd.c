@@ -465,7 +465,7 @@ static int aartyaa_lcd_notifier_call(struct notifier_block *nb,
 {       
         struct device *dev = data;
 	
-	pr_debug(KERN_INFO "aartyaa_lcd_notifier_call : action = %lu\n", action);
+	pr_debug("aartyaa_lcd_notifier_call : action = %lu\n", action);
         switch (action) {
 	       case BUS_NOTIFY_ADD_DEVICE:
         	       return aartyaa_lcd_attach_adapter(dev, NULL);
@@ -500,8 +500,6 @@ static __init int aartyaa_lcd_init(void)
 	
 	pr_debug("aartyaa_lcd_init : %s class created\n", DRIVER_NAME);       
  
-	// aartyaa_lcd_class->dev_groups = aartyaa_lcd_groups;
-	
 	/* 
 	 * Keep track of adapters which will be added or removed later.  
 	 * uses to let kernel know that asynch event has been happened.
@@ -510,10 +508,12 @@ static __init int aartyaa_lcd_init(void)
 	 * to express interest in being informed about the occurence of general
 	 * asynchronous events
 	 */
-        res = bus_register_notifier(&i2c_bus_type, &aartyaa_lcd_notifier);
-        if (res)
+        
+	if ( res = bus_register_notifier(&i2c_bus_type, &aartyaa_lcd_notifier) ) {
+		pr_debug("aartyaa_lcd_init : falied to notify the kernel\n");
                 goto out_unreg_class;
-
+	}
+	
         /* Bind to already existing adapters right away */
         i2c_for_each_dev(NULL, aartyaa_lcd_attach_adapter);
 
