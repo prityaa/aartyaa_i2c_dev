@@ -18,7 +18,7 @@
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
 
-#include "aartyaa_grove_lcd.h"
+#include "aartyaa_lcd.h"
 
 static struct aartyaa_lcd_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {               
@@ -98,7 +98,6 @@ int aartyaa_lcd_open (struct inode *inode, struct file *file)
 	
         snprintf(client->name, I2C_NAME_SIZE, "aartyaa_lcd %d", adap->nr);
 	pr_debug("aartyaa_lcd_open : adap->nr = %d, client->name = %s\n", adap->nr, client->name);
-	pr_debug("aartyaa_lcd_open : aartyaa checling\n");
 
         client->adapter = adap;
         file->private_data = client;
@@ -257,10 +256,12 @@ static noinline int aartyaa_lcd_dev_ioctl_smbus(struct i2c_client *client,
         union i2c_smbus_data temp;
         int datasize, res;
 
+	/* getting the i2c_smbus_ioctl_data frm aplication level */
         if (copy_from_user(&data_arg,
                            (struct i2c_smbus_ioctl_data __user *) arg,
                            sizeof(struct i2c_smbus_ioctl_data)))
                 return -EFAULT;
+
         if ((data_arg.size != I2C_SMBUS_BYTE) &&
             (data_arg.size != I2C_SMBUS_QUICK) &&
             (data_arg.size != I2C_SMBUS_BYTE_DATA) &&
@@ -275,6 +276,7 @@ static noinline int aartyaa_lcd_dev_ioctl_smbus(struct i2c_client *client,
                         data_arg.size);
                 return -EINVAL;
         }
+
         /* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
            so the check is valid if size==I2C_SMBUS_QUICK too. */
         if ((data_arg.read_write != I2C_SMBUS_READ) &&
@@ -286,7 +288,6 @@ static noinline int aartyaa_lcd_dev_ioctl_smbus(struct i2c_client *client,
         }
 
         /* Note that command values are always valid! */
-
         if ((data_arg.size == I2C_SMBUS_QUICK) ||
             ((data_arg.size == I2C_SMBUS_BYTE) &&
 		(data_arg.read_write == I2C_SMBUS_WRITE)))
@@ -341,8 +342,6 @@ static noinline int aartyaa_lcd_dev_ioctl_smbus(struct i2c_client *client,
         return res;
 }
 
-
-
 static long aartyaa_lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
         struct i2c_client *client = file->private_data;
@@ -351,29 +350,22 @@ static long aartyaa_lcd_ioctl(struct file *file, unsigned int cmd, unsigned long
         dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
                 cmd, arg);
 
-        pr_debug("ioctl, cmd=0x%02x, arg=0x%02lx\n", cmd, arg);
-        pr_debug("i2cdev_ioctl : I2C_SLAVE address = %d\n", client->addr);
+        pr_debug("ioctl, cmd=0x%02x, arg=0x%02lx client->addr = %x\n", cmd, arg, client->addr);
 
         switch (cmd) {
         case I2C_SLAVE:
         case I2C_SLAVE_FORCE:
-                /* NOTE:  devices set up to work with "new style" drivers
-                 * can't use I2C_SLAVE, even when the device node is not
-                 * bound to a driver.  Only I2C_SLAVE_FORCE will work.
-                 *
-                 * Setting the PEC flag here won't affect kernel drivers,
-                 * which will be using the i2c_client node registered with
-                 * the driver model core.  Likewise, when that client has
-                 * the PEC flag already set, the i2c-dev driver won't see
-                 * (or use) this setting.
-                 */
-                if ((arg > 0x3ff) ||
+                
+		/** checking if addr is 10 bit long, that passed by application */
+		if ((arg > 0x3ff) ||
                     (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
                         return -EINVAL;
+
+		/** check i2c addr,  that passed by application */
                 if (cmd == I2C_SLAVE && i2cdev_check_addr(client->adapter, arg))
                         return -EBUSY;
-                /* REVISIT: address could become busy later */
-                client->addr = arg;
+                
+		client->addr = arg;
 
                 return 0;
 
@@ -509,7 +501,7 @@ static __init int aartyaa_lcd_init(void)
 	 * asynchronous events
 	 */
         
-	if ( res = bus_register_notifier(&i2c_bus_type, &aartyaa_lcd_notifier) ) {
+	if ( (res = bus_register_notifier(&i2c_bus_type, &aartyaa_lcd_notifier)) ) {
 		pr_debug("aartyaa_lcd_init : falied to notify the kernel\n");
                 goto out_unreg_class;
 	}
